@@ -107,43 +107,51 @@ class WebScraper
     metadata
   end
 
-  private
+  def run
+    loop do
+      show_menu
+      print "Escolha uma opção: "
+      choice = gets.chomp.strip
 
-  def extract_title(html)
-    match = html.match(/<title[^>]*>([^<]+)<\/title>/i)
-    match ? match[1].strip : 'N/A'
-  end
-
-  def extract_description(html)
-    match = html.match(/<meta\s+name=["']description["']\s+content=["']([^"']+)["']/i)
-    match ? match[1].strip : 'N/A'
-  end
-
-  def extract_keywords(html)
-    match = html.match(/<meta\s+name=["']keywords["']\s+content=["']([^"']+)["']/i)
-    match ? match[1].split(',').map(&:strip) : []
-  end
-
-  def save_json(filename)
-    File.write(filename, JSON.pretty_generate(@results))
-    puts "✓ Dados salvos em #{filename}"
-  end
-
-  def save_csv(filename)
-    return if @results.empty?
-
-    CSV.open(filename, 'w') do |csv|
-      csv << @results[0].keys
-      @results.each { |row| csv << row.values }
+      case choice
+      when '1'
+        scrape_single_url
+      when '2'
+        scrape_multiple_urls
+      when '3'
+        if @results.empty?
+          puts "\n✗ Nenhum resultado para salvar!"
+        else
+          save_to_json('results.json')
+        end
+      when '4'
+        if @results.empty?
+          puts "\n✗ Nenhum resultado para salvar!"
+        else
+          save_to_csv('results.csv')
+        end
+      when '5'
+        if @results.empty?
+          puts "\n✗ Nenhum resultado disponível"
+        else
+          puts "\n" + JSON.pretty_generate(@results)
+        end
+      when '6'
+        @results.clear
+        puts "✓ Resultados limpos!"
+      when '7'
+        puts "\nAté logo! 👋"
+        break
+      else
+        puts "✗ Opção inválida!"
+      end
     end
-
-    puts "✓ Dados salvos em #{filename}"
   end
 
   def show_menu
-    puts "\n" + "=".repeat(50)
-    puts "🕷️  WEB SCRAPER"
-    puts "=".repeat(50)
+    puts "\n" + "=".*(50)
+    puts "🕷️  WEB SCRAPER - Ruby"
+    puts "=".*(50)
     puts "1. Scrape de uma URL"
     puts "2. Scrape de múltiplas URLs"
     puts "3. Salvar resultados (JSON)"
@@ -151,22 +159,20 @@ class WebScraper
     puts "5. Ver resultados"
     puts "6. Limpar resultados"
     puts "7. Sair"
-    puts "=".repeat(50)
+    puts "=".*(50)
   end
 
   def scrape_single_url
     print "\nDigite a URL: "
     url = gets.chomp.strip
-
     return if url.empty?
 
-    puts "\nOpcões de extração:"
+    puts "\nOpções de extração:"
     puts "1. Metadados (título, descrição, keywords)"
     puts "2. Links"
     puts "3. Títulos (headings)"
     puts "4. Parágrafos"
     puts "5. Tudo"
-
     print "Escolha (1-5): "
     choice = gets.chomp.strip
 
@@ -186,8 +192,8 @@ class WebScraper
       result[:paragraphs] = extract_paragraphs(html)
     when '5'
       result.merge!(extract_metadata(html, url))
-      result[:links] = extract_links(html, url)
-      result[:headings] = extract_headings(html)
+      result[:links]      = extract_links(html, url)
+      result[:headings]   = extract_headings(html)
       result[:paragraphs] = extract_paragraphs(html)
     else
       puts "✗ Opção inválida!"
@@ -214,41 +220,42 @@ class WebScraper
       @results << result
     end
 
-    puts "\n✓ Scrape concluído!"
+    puts "\n✓ Scrape concluído! #{@results.length} resultado(s) coletado(s)."
   end
 
-  def run
-    loop do
-      show_menu
-      print "Escolha uma opção: "
-      choice = gets.chomp.strip
+  private
 
-      case choice
-      when '1'
-        scrape_single_url
-      when '2'
-        scrape_multiple_urls
-      when '3'
-        save_json('results.json') unless @results.empty?
-      when '4'
-        save_csv('results.csv') unless @results.empty?
-      when '5'
-        if @results.empty?
-          puts "\n✗ Nenhum resultado disponível"
-        else
-          puts "\n" + JSON.pretty_generate(@results)
-        end
-      when '6'
-        @results.clear
-        puts "✓ Resultados limpos!"
-      when '7'
-        puts "\nAté logo!"
-        break
-      else
-        puts "✗ Opção inválida!"
-      end
+  def extract_title(html)
+    match = html.match(/<title[^>]*>([^<]+)<\/title>/i)
+    match ? match[1].strip : 'N/A'
+  end
+
+  def extract_description(html)
+    match = html.match(/<meta\s+name=["']description["']\s+content=["']([^"']+)["']/i)
+    match ? match[1].strip : 'N/A'
+  end
+
+  def extract_keywords(html)
+    match = html.match(/<meta\s+name=["']keywords["']\s+content=["']([^"']+)["']/i)
+    match ? match[1].split(',').map(&:strip) : []
+  end
+
+  def save_to_json(filename)
+    File.write(filename, JSON.pretty_generate(@results))
+    puts "✓ Dados salvos em #{filename}"
+  end
+
+  def save_to_csv(filename)
+    return if @results.empty?
+
+    CSV.open(filename, 'w') do |csv|
+      csv << @results[0].keys
+      @results.each { |row| csv << row.values }
     end
+
+    puts "✓ Dados salvos em #{filename}"
   end
+
 end
 
 if __FILE__ == $0
