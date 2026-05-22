@@ -2,6 +2,7 @@
 
 require 'net/http'
 require 'uri'
+require 'openssl'
 require 'json'
 require 'csv'
 require 'time'
@@ -14,24 +15,40 @@ class WebScraper
     @timeout = 10
   end
 
-  def fetch_page(url)
+  def fetch_page(url, redirect_limit = 5)
+    return nil if redirect_limit.zero?
+
+    # Garante que a URL tem esquema http/https
+    url = "https://#{url}" unless url.match?(/\Ahttps?:\/\//i)
+
     uri = URI.parse(url)
-    
+
+    # request_uri não existe em URI::Generic; usa path + query manualmente
+    path = uri.path.to_s
+    path = '/' if path.empty?
+    path += "?#{uri.query}" if uri.query
+
     begin
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = (uri.scheme == 'https')
       http.read_timeout = @timeout
       http.open_timeout = @timeout
+      http.verify_mode = OpenSSL::SSL::VERIFY_NONE if http.use_ssl?
 
-      request = Net::HTTP::Get.new(uri.request_uri)
-      request['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+      request = Net::HTTP::Get.new(path)
+      request['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      request['Accept']     = 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
 
       response = http.request(request)
 
       case response.code.to_i
       when 200
         puts "✓ Página carregada com sucesso (#{response.code})"
-        response.body
+        response.body.force_encoding('UTF-8').encode('UTF-8', invalid: :replace, undef: :replace)
+      when 301, 302, 303, 307, 308
+        location = response['location']
+        puts "→ Redirecionando para: #{location}"
+        fetch_page(location, redirect_limit - 1)
       when 404
         puts "✗ Página não encontrada (404)"
         nil
@@ -47,6 +64,12 @@ class WebScraper
       nil
     rescue SocketError => e
       puts "✗ Erro de conexão: #{e.message}"
+      nil
+    rescue OpenSSL::SSL::SSLError => e
+      puts "✗ Erro SSL: #{e.message}"
+      nil
+    rescue URI::InvalidURIError => e
+      puts "✗ URL inválida: #{e.message}"
       nil
     rescue => e
       puts "✗ Erro inesperado: #{e.message}"
