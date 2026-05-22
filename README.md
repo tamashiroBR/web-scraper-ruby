@@ -23,7 +23,7 @@ Um script utilitário em Ruby para extrair informações de páginas web, inclui
 2. Clone o repositório
 3. Navegue até o diretório do projeto:
    ```bash
-   cd 8-web-scraper-ruby
+   cd web-scraper-ruby
    ```
 4. Dê permissão de execução (opcional no Linux/Mac):
    ```bash
